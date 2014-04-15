@@ -41,7 +41,7 @@ class Pinger
             $c = curl_init();
             curl_setopt($c, CURLOPT_URL, $host['url']);
             curl_setopt($c, CURLOPT_AUTOREFERER, 1);
-            curl_setopt($c, CURLOPT_FOLLOWLOCATION, 1);
+            curl_setopt($c, CURLOPT_FOLLOWLOCATION, 0);
             curl_setopt($c, CURLOPT_FRESH_CONNECT, 1);
             curl_setopt($c, CURLOPT_USERAGENT, $config['ua']);
 
@@ -62,7 +62,6 @@ class Pinger
                 {
                     $headers[] = "$header: $value";
                 }
-                var_dump($headers);
                 curl_setopt($c, CURLOPT_HTTPHEADER, $headers);
             }
 
@@ -142,7 +141,7 @@ class Pinger
             $info->count = $this->db[$config['id']]['slow'];
             $this->trigger('SLOW', $config, $info);
         }
-        else if ($this->db[$config['id']]['triggered'])
+        else if (!empty($this->db[$config['id']]['triggered']))
         {
             $this->resolve($config, $info);
         }
@@ -166,7 +165,7 @@ class Pinger
         $args['name'] = $config['name'];
         $args['action'] = $type;
 
-        $args['msg'] = "Code: $args[code], Time: $args[time]";
+        $args['msg'] = "Code: $args[code], Time: $args[time], $args[failure]";
 
         $this->db[$config['id']]['triggered'][$type] = $type;
         $this->alerter->trigger($config['id'], $args);
@@ -186,6 +185,7 @@ class Pinger
             $args['action'] = $type;
 
             $this->alerter->resolve($config['id'], $args);
+            unset($this->db[$config['id']]['triggered']);
         }
     }
 
@@ -198,13 +198,36 @@ class Pinger
         $r->time = $info['total_time'];
         $r->connect_time = $info['connect_time'];
         $r->size = $info['size_download'];
+        $r->failure = '';
 
         // check for valid return code
         if (!in_array($info['http_code'], $config['valid']))
         {
             $r->status = 'failed';
+            $r->failure = "Bad response code $info[http_code]";
             return $r;
         }
+
+        // do any header checks
+        if (!empty($config['verify']['headers']))
+        {
+            foreach($config['verify']['headers'] as $header => $value)
+            {
+                if (empty($message->headers[$header]))
+                {
+                    $r->status = 'failed';
+                    $r->failure = "Missing header $header";
+                    return $r;
+                }
+                else if ($message->headers[$header] != $value)
+                {
+                    $r->status = 'failed';
+                    $r->failure = "Bad header value $header != $value";
+                    return $r;
+                }
+            }
+        }
+
 
         return $r;
     }
