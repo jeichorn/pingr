@@ -1,0 +1,21 @@
+{
+    "name": "pingr",
+    "description": "Tool for moitoring uptime of hosts, currently no ui",
+    "authors": [
+        {
+            "name": "Joshua Eichorn",
+            "email": "josh@bluga.net"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Pingr\\": "src/Pingr",
+            "PagerDuty\\": "src/PagerDuty"
+        }
+    },
+    "require": {
+        "guzzle/guzzle": "~3.7",
+        "symfony/console": "~2.3",
+        "eoghanobrien/php-simple-mail": "dev-master"
+    }
+}
